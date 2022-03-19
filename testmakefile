@@ -1,0 +1,24 @@
+
+nada: not_a_thing 
+	echo nada
+not_a_thing:
+	echo not_a_thing
+nada2: darn shucks
+	echo nada 2
+darn:
+	echo wack
+whoops wowie: 
+	echo whoops and wowie
+sheesh: nada2
+	echo sheeeeeesh
+hellya: fail.out
+	./fail.out
+	echo above failed
+fail.out: fail.c
+	gcc fail.c -o fail.out
+hellnah: hellya
+	echo welp
+booya: testfail.out fail.out
+	./testfail.out
+testfail.out: testfail.c
+	gcc testfail.c -o testfail.out
