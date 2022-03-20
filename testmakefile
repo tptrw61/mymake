@@ -24,3 +24,5 @@ testfail.out: testfail.c
 	gcc testfail.c -o testfail.out
 dothis: testfail.c darn
 	echo done this
+nada:
+	echo do this instead
