@@ -26,3 +26,5 @@ dothis: testfail.c darn
 	echo done this
 nada:
 	echo do this instead
+clean:
+	rm -f fail.out testfail.out
