@@ -59,12 +59,12 @@ void deleteList(Node *list);
 void freeAll(void);
 TargetNode * findTarget(TargetNode *list, const char *s);
 
-void addToTargets(Node **list, Node **back, const char *s); //need to implement
-void addToDeps(Node **list, Node **back, const char *s); //need to implement
-void addToComs(Node **list, Node **back, const char *s); //need to implement
+void addToTargets(Node **list, Node **back, const char *s);
+void addToDeps(Node **list, Node **back, const char *s);
+void addToComs(Node **list, Node **back, const char *s);
 char *lstrip(const char *s); //need to implement
-void addAll(Node *targets, Node *deps, Node *coms); //need to implement
-//void run(const char *target, const char *from); //need to implement
+void addAll(Node *targets, Node *deps, Node *coms);
+int run(const char *target, const char *from, TimeType *prevTime);
 
 
 
@@ -169,14 +169,20 @@ int main(int argc, char **argv) {
 
     //everything should be added now
     //run the target
+    int rv;
+    char *tname;
     if (myTarget == NULL) {
         if (TARGETS == NULL) {
             fprintf(stderr, "%s: No target in makefile\n", NAME);
             return 1;
         }
-        run(TARGETS->s, NULL, NULL);
+        tname = TARGETS->s;
     } else {
-        run(myTarget, NULL, NULL);
+        tname = myTarget;
+    }
+    rv = run(tname, NULL, NULL);
+    if (rv == 0) {
+        printf("%s: '%s' is up to date.\n", NAME, tname);
     }
     return 0;
 }
