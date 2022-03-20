@@ -10,6 +10,7 @@
 #endif
 #include <sys/stat.h>
 #include <time.h>
+#include <ctype.h>
 
 /*
 int h_addTarget(const char *target);
@@ -51,20 +52,21 @@ struct targetNode_s {
 
 TargetNode *TARGETS = NULL;
 char *NAME, *FILENAME;
+char SPACE_CHARS[] = " \f\n\r\t\v";
 
 Node * makeNode(const char *s);
 TargetNode * makeTargetNode(const char *s);
 void deleteNode(Node *n);
 void deleteList(Node *list);
 void freeAll(void);
-TargetNode * findTarget(TargetNode *list, const char *s);
+TargetNode * findTarget(const char *s);
 
 void addToTargets(Node **list, Node **back, const char *s);
 void addToDeps(Node **list, Node **back, const char *s);
 void addToComs(Node **list, Node **back, const char *s);
-char *lstrip(const char *s); //need to implement
+char *lstrip(const char *s);
 void addAll(Node *targets, Node *deps, Node *coms);
-int run(const char *target, const char *from, TimeType *prevTime);
+int run(const char *target, const char *from, const TimeType *prevTime);
 
 
 
@@ -89,7 +91,6 @@ int main(int argc, char **argv) {
     char *line = NULL;
     size_t len = 0;
     char *tok;
-    char delim[] = " \n\t\r";
     int foundColon;
     char *colonString1, *colonString2;
     Node *targets = NULL, *targetsBack = NULL;
@@ -119,13 +120,13 @@ int main(int argc, char **argv) {
             }
             //setup stuff
             foundColon = 0;
-            tok = strtok(line, delim);
+            tok = strtok(line, SPACE_CHARS);
             while (tok) {
                 if (foundColon) {
                     //do dependencies
                     addToDeps(&deps, &depsBack, tok);
 
-                    tok = strtok(NULL, delim);
+                    tok = strtok(NULL, SPACE_CHARS);
                     continue;
                 }
                 //check for colon
@@ -150,13 +151,13 @@ int main(int argc, char **argv) {
                     free(colonString1);
                     //dont worry about colonString2 cause its a substring of colonString1 technically
 
-                    tok = strtok(NULL, delim);
+                    tok = strtok(NULL, SPACE_CHARS);
                     continue;
                 }
                 //do targets
                 addToTargets(&targets, &targetsBack, tok);
 
-                tok = strtok(NULL, delim);
+                tok = strtok(NULL, SPACE_CHARS);
             }
         }
         lineno++;
@@ -281,18 +282,26 @@ void addToList(Node **list, Node **back, const char *s) {
 }
 
 void addToTargets(Node **list, Node **back, const char *s) {
+    if (strlen(s) == 0) return;
     addToList(list, back, s);
 }
 
 void addToDeps(Node **list, Node **back, const char *s) {
+    if (strlen(s) == 0) return;
     addToList(list, back, s);
 }
 
 void addToComs(Node **list, Node **back, const char *s) {
+    if (strlen(s) == 0) return;
     addToList(list, back, s);
 }
 
-char *lstrip(const char *s); //need to implement
+char *lstrip(const char *s) {
+    while (isspace(*s)) {
+        s++;
+    }
+    return s;
+}
 
 Node * dupList(Node *list, Node *end) {
     Node *newList = NULL;
@@ -381,7 +390,7 @@ void runComs(TargetNode *tn) {
         rv = WEXITSTATUS(ws);
         if (rv != 0) {
             fprintf(stderr, "%s: Recipe for target '%s' failed.\n", FILENAME, tn->s);
-            fprintf(stderr, "%s: [%s] Error %d\n", NAME, rv);
+            fprintf(stderr, "%s: [%s] Error %d\n", NAME, tn->s, rv);
             exit(rv);
         }
     }
