@@ -158,10 +158,7 @@ int main(int argc, char **argv) {
         lineno++;
     }
     addAll(targets, deps, coms);
-    //clear all the lists
-    deleteList(targets);
-    deleteList(deps);
-    deleteList(coms);
+    //lists are handled in addAll
     targets = targetsBack = NULL;
     deps = depsBack = NULL;
     coms = comsBack = NULL;
@@ -259,16 +256,86 @@ TargetNode * findTarget(const char *s) {
     return NULL;
 }
 
+void addToList(Node **list, Node **back, const char *s) {
+    assert(list);
+    assert(back);
+    assert(s);
+    Node *n = makeNode(s);
+    if (*list == NULL) {
+        *list = n;
+        *back = n;
+        return;
+    }
+    (*back)->next = n;
+    *back = n;
+}
 
-void addToTargets(Node **list, Node **back, const char *s); //need to implement
+void addToTargets(Node **list, Node **back, const char *s) {
+    addToList(list, back, s);
+}
 
-void addToDeps(Node **list, Node **back, const char *s); //need to implement
+void addToDeps(Node **list, Node **back, const char *s) {
+    addToList(list, back, s);
+}
 
-void addToComs(Node **list, Node **back, const char *s); //need to implement
+void addToComs(Node **list, Node **back, const char *s) {
+    addToList(list, back, s);
+}
 
 char *lstrip(const char *s); //need to implement
 
-void addAll(Node *targets, Node *deps, Node *coms); //need to implement
+Node * dupList(Node *list, Node *end) {
+    Node *newList = NULL;
+    Node *back;
+    for (Node *n = list; n != NULL; n = n->next) {
+        addToList(&newList, &back, n->s);
+    }
+    if (list != NULL) {
+        back->next = end;
+    }
+    return newList;
+}
+
+void addAll(Node *targets, Node *deps, Node *coms) {
+    for (Node *tn = targets; tn != NULL; tn = tn->next) {
+        //get target node
+        TargetNode *curTargetNode;
+        if (TARGETS == NULL) {
+            TARGETS = curTargetNode = makeTargetNode(tn->s);
+        } else {
+            //
+            int gotit = 0;
+            for (TargetNode *tt = TARGETS; tt != NULL; tt = tt->next) {
+                curTargetNode = tt;
+                if (strcmp(tt->s, tn->s) == 0) {
+                    gotit = 1;
+                    break;
+                }
+            }
+            if (!gotit) {
+                TargetNode *newNode = makeTargetNode(tn->s);
+                curTargetNode->next = newNode;
+                curTargetNode = newNode;
+            }
+        }
+        //old deps and commands
+        Node *oldDeps = curTargetNode->dependencies;
+        if (curTargetNode->commands != NULL) {
+            fprintf(stderr, "%s: warning: overriding recipe for target '%s'.\n", FILENAME, tn->s);
+            deleteList(curTargetNode->commands);
+            curTargetNode->commands = NULL;
+        }
+        //add deps and commands
+        if (tn->next == NULL) { //dont dup the list
+            curTargetNode->dependencies = deps;
+            curTargetNode->commands = coms;
+        } else {
+            curTargetNode->dependencies = dupList(deps, oldDeps);
+            curTargetNode->commands = dupList(coms, NULL);
+        }
+    }
+    deleteList(targets);
+}
 
 TimeType getTimeFromStat(struct stat st) {
 #ifdef _WIN32
