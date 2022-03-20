@@ -28,10 +28,14 @@ struct node_s;
 typedef struct node_s Node;
 typedef struct targetNode_s TargetNode;
 
-#ifdef _WIN32
-typedef time_t TimeType;
-#else
+#ifdef st_mtime
+#define USE_TIMESPEC
+#endif
+
+#ifdef USE_TIMESPEC
 typedef struct timespec TimeType;
+#else
+typedef time_t TimeType;
 #endif
 
 struct node_s {
@@ -338,20 +342,16 @@ void addAll(Node *targets, Node *deps, Node *coms) {
 }
 
 TimeType getTimeFromStat(struct stat st) {
-#ifdef _WIN32
-    return st.st_mtime;
-#else
+#ifdef USE_TIMESPEC
     return st.st_mtim;
+#else
+    return st.st_mtime;
 #endif
 }
 
 int cmpTime(TimeType a, TimeType b) {
     //
-#ifdef _WIN32
-    if (a > b) return 1;
-    else if (a == b) return 0;
-    else return -1;
-#else
+#ifdef USE_TIMESPEC
     if (a.tv_sec > b.tv_sec) {
         return 1;
     } else if (a.tv_sec == b.tv_sec) {
@@ -361,6 +361,10 @@ int cmpTime(TimeType a, TimeType b) {
     } else {
         return -1;
     }
+#else
+    if (a > b) return 1;
+    else if (a == b) return 0;
+    else return -1;
 #endif
 }
 
