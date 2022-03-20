@@ -8,6 +8,8 @@
 #else
 #include "sys/wait.h"
 #endif
+#include <sys/stat.h>
+#include <time.h>
 
 /*
 int h_addTarget(const char *target);
@@ -25,6 +27,12 @@ struct node_s;
 
 typedef struct node_s Node;
 typedef struct targetNode_s TargetNode;
+
+#ifdef _WIN32
+typedef time_t TimeType;
+#else
+typedef struct timespec TimeType;
+#endif
 
 struct node_s {
     char *s;
@@ -52,7 +60,7 @@ void addToDeps(Node **list, Node **back, const char *s); //need to implement
 void addToComs(Node **list, Node **back, const char *s); //need to implement
 char *lstrip(const char *s); //need to implement
 void addAll(Node *targets, Node *deps, Node *coms); //need to implement
-void run(const char *target, const char *from); //need to implement
+//void run(const char *target, const char *from); //need to implement
 
 
 
@@ -165,9 +173,9 @@ int main(int argc, char **argv) {
             fprintf(stderr, "%s: No target in makefile\n", NAME);
             return 1;
         }
-        run(TARGETS->s, NULL);
+        run(TARGETS->s, NULL, NULL);
     } else {
-        run(myTarget, NULL);
+        run(myTarget, NULL, NULL);
     }
     return 0;
 }
@@ -262,38 +270,97 @@ char *lstrip(const char *s); //need to implement
 
 void addAll(Node *targets, Node *deps, Node *coms); //need to implement
 
-void run(const char *target, const char *from) {
-    TargetNode *tn = findTarget(target);
-    if (tn == NULL) { //no such target
+TimeType getTimeFromStat(struct stat st) {
+#ifdef _WIN32
+    return st.st_mtime;
+#else
+    return st.st_mtim;
+#endif
+}
+
+int cmpTime(TimeType a, TimeType b) {
+    //
+#ifdef _WIN32
+    if (a > b) return 1;
+    else if (a == b) return 0;
+    else return -1;
+#else
+    if (a.tv_sec > b.tv_sec) {
+        return 1;
+    } else if (a.tv_sec == b.tv_sec) {
+        if (a.tv_nsec > b.tv_nsec) return 1;
+        else if (a.tv_nsec == b.tv_nsec) return 0;
+        else return -1;
+    } else {
+        return -1;
+    }
+#endif
+}
+
+void runComs(TargetNode *tn) {
+    int ws, rv;
+    for (Node *c = tn->commands; c != NULL; c = c->next) {
+        ws = system(c->s);
+        rv = WEXITSTATUS(ws);
+        if (rv != 0) {
+            fprintf(stderr, "%s: Recipe for target '%s' failed.\n", FILENAME, tn->s);
+            fprintf(stderr, "%s: [%s] Error %d\n", NAME, rv);
+            exit(rv);
+        }
+    }
+}
+
+//return 1 if target was run
+//return 0 if target was not run
+//if recursive run call returns 1 then current run call will have to build
+int run(const char *target, const char *from, const TimeType *prevTime) {
+    //get file stat and target pointer
+    TargetNode *targetPtr = findTarget(target);
+    struct stat targetStat;
+    int tsrv = stat(target, &targetStat);
+    TimeType targetTime;
+    if (tsrv == 0) {
+        targetTime = getTimeFromStat(targetStat);
+    }
+
+    if (tsrv == -1 && errno != ENOENT) { //just break if something went wrong
+        perror(target);
+        exit(1);
+    }
+    if (targetPtr == NULL && tsrv == -1) { //no recipe or file
         if (from == NULL) {
             fprintf(stderr, "%s: No rule to make target '%s'.\n", NAME, target);
         } else {
             fprintf(stderr, "%s: No rule to make target '%s', needed by '%s'.\n", NAME, target, from);
         }
         exit(1);
-    }
-    //check dependencies
-    for (Node *d = tn->dependencies; d != NULL; d = d->next) {
-        //in the future, use a list of targets being run to check for circular dependencies
-        //first check for target
-        //in the future, check for file and check time and stuff
-        TargetNode *dt = findTarget(d->s);
-        if (dt == NULL) {
-            //check for file
-            //TODO
-        } else {
-            run(dt->s, target);
+    } else
+    if (targetPtr == NULL && tsrv == 0) { //just a file
+        if (prevTime != NULL) {
+            //check the times
+            if (cmpTime(targetTime, *prevTime) == -1) { //if cur file is older than prev file
+                return 0; //no need to update above target
+            }
         }
-    }
-    //run commands
-    int ws, rv;
-    for (Node *c = tn->commands; c != NULL; c = c->next) {
-        ws = system(c->s);
-        rv = WEXITSTATUS(ws);
-        if (rv != 0) {
-            fprintf(stderr, "%s: Recipe for target '%s' failed.\n", NAME, target);
-            fprintf(stderr, "%s: [%s] Error %d\n", NAME, rv);
-            exit(rv);
+        return 1; //force the previous target to run
+    } else
+    if (targetPtr != NULL && tsrv == -1) { //recipe with no file
+        for (Node *c = targetPtr->dependencies; c != NULL; c = c->next) {
+            run(c->s, target, NULL);
         }
+        runComs(targetPtr);
+        return 1;
+    } else
+    if (targetPtr != NULL && tsrv == 0) { //recipe with a file
+        int shouldRunComs = 0;
+        for (Node *c = targetPtr->dependencies; c != NULL; c = c->next) {
+            shouldRunComs += run(c->s, target, &targetTime);
+        }
+        if (shouldRunComs > 0) {
+            runComs(targetPtr);
+            return 1;
+        }
+        return 0;
     }
+    return 0;
 }

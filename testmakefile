@@ -22,3 +22,5 @@ booya: testfail.out fail.out
 	./testfail.out
 testfail.out: testfail.c
 	gcc testfail.c -o testfail.out
+dothis: testfail.c darn
+	echo done this
