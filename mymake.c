@@ -64,7 +64,7 @@ TargetNode * findTarget(const char *s);
 void addToTargets(Node **list, Node **back, const char *s);
 void addToDeps(Node **list, Node **back, const char *s);
 void addToComs(Node **list, Node **back, const char *s);
-char *lstrip(const char *s);
+const char *lstrip(const char *s);
 void addAll(Node *targets, Node *deps, Node *coms);
 int run(const char *target, const char *from, const TimeType *prevTime);
 
@@ -296,7 +296,7 @@ void addToComs(Node **list, Node **back, const char *s) {
     addToList(list, back, s);
 }
 
-char *lstrip(const char *s) {
+const char *lstrip(const char *s) {
     while (isspace(*s)) {
         s++;
     }
