@@ -105,15 +105,16 @@ int main(int argc, char **argv) {
                 return 1;
             }
             //do commands
-            addToComs(&coms, &comsBack, lstrip(tok));
+            addToComs(&coms, &comsBack, lstrip(line));
         } else { //if its a target
             //first add all targets and their stuff
-            if (targets == NULL) {
+            if (targets != NULL) {
                 addAll(targets, deps, coms);
+                //LISTS ARE HANDLED IN 'addAll'
                 //clear all the lists
-                deleteList(targets);
-                deleteList(deps);
-                deleteList(coms);
+                //deleteList(targets);
+                //deleteList(deps);
+                //deleteList(coms);
                 targets = targetsBack = NULL;
                 deps = depsBack = NULL;
                 coms = comsBack = NULL;
@@ -238,11 +239,11 @@ void deleteNode(Node *n) {
 }
 
 void deleteList(Node *list) {
-    Node *c;
-    while (list != NULL) {
-        c = list;
-        list = list->next;
-        deleteNode(c);
+    Node *c = list, *cc;
+    while (c != NULL) {
+        cc = c;
+        c = c->next;
+        deleteNode(cc);
     }
 }
 
@@ -297,6 +298,7 @@ void addToComs(Node **list, Node **back, const char *s) {
 }
 
 const char *lstrip(const char *s) {
+
     while (isspace(*s)) {
         s++;
     }
@@ -384,8 +386,16 @@ int cmpTime(TimeType a, TimeType b) {
 }
 
 void runComs(TargetNode *tn) {
-    int ws, rv;
+    int ws, rv, len;
     for (Node *c = tn->commands; c != NULL; c = c->next) {
+        //print command being run first
+        //also check for newline
+        len = strlen(c->s);
+        if (c->s[len-1] == '\n') {
+            printf("%s", c->s);
+        } else {
+            printf("%s\n", c->s);
+        }
         ws = system(c->s);
         rv = WEXITSTATUS(ws);
         if (rv != 0) {
