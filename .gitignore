@@ -1,5 +1,8 @@
 mymake
 
+#log stuff that can probs be ignored
+.vscode/*.log
+
 # Prerequisites
 *.d
 
