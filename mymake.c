@@ -12,6 +12,54 @@
 #include <time.h>
 #include <ctype.h>
 
+#ifdef _WIN32
+#define DEFAULT_BUFFER_SIZE 40
+long long getline(char **buf, size_t *n, FILE *stream) {
+    if (buf == NULL || n == NULL || stream == NULL) { //set errno do to bad param
+        errno = ENOMEM;
+        return -1;
+    }
+    if (*buf != NULL && *n == 0) {
+        errno = ENOMEM;
+        return -1;
+    }
+    //check if buffer is null
+    if (*buf == NULL) {
+        *buf = malloc(DEFAULT_BUFFER_SIZE);
+        if (*buf == NULL) {
+            errno = ENOMEM;
+            return -1;
+        }
+        *n = DEFAULT_BUFFER_SIZE;
+    }
+    size_t i = 0;
+    int read;
+    while (1) {
+        //check if resize is required
+        //doing this first cause ill likely have to put a '\0' at index i
+        if (i == *n) {
+            char *newbuf = realloc(*buf, *n + DEFAULT_BUFFER_SIZE);
+            if (newbuf == NULL) {
+                //should i move all read characters back to the stream using ungetc?
+                errno = ENOMEM;
+                return -1;
+            }
+            *n += DEFAULT_BUFFER_SIZE;
+            *buf = newbuf;
+        }
+        read = fgetc(stream);
+        if (read == EOF || read == '\n' || read == '\0') {
+            break;
+        } else {
+            (*buf)[i] = (char)read;
+            i++;
+        }
+    }
+    (*buf)[i] = '\0';
+    return i;
+}
+#endif
+
 /*
 int h_addTarget(const char *target);
 int h_addDependency(const char *target, const char *dep);
